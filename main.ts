@@ -22,13 +22,15 @@ export default class Flow2Plugin extends Plugin {
 
 		this.addRibbonIcon('paper-plane', 'Publish to Flow2', async () => {
 			const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
-			if (activeLeaf) {
-				const success = await this.publishPost(activeLeaf);
-				if (success) {
-					new Notice('Post published successfully!');
-				} else {
-					new Notice('Failed to publish post');
+			
+			if (activeLeaf && activeLeaf.file) {
+				const postId = await this.publishPost(activeLeaf);
+
+				if (!postId) {
+					return
 				}
+
+				await this.uploadMedia(activeLeaf.file, postId);
 			}
 		});
 
@@ -37,7 +39,7 @@ export default class Flow2Plugin extends Plugin {
 
 	onunload() {}
 
-	async publishPost(activeLeaf: MarkdownView): Promise<boolean> {
+	async publishPost(activeLeaf: MarkdownView): Promise<string|null> {
 		try {
 
 			const content = activeLeaf.editor.getValue();
@@ -52,66 +54,78 @@ export default class Flow2Plugin extends Plugin {
 				body: content
 			});
 
-			const postId = newPostResponse.json.id
-			console.log('Post created successfully with ID: %s', postId);
-			new Notice('Post created successfully with ID: %s', postId);
+			const postId = newPostResponse.json?.id
 
-			if (activeLeaf.file == null) {
-				throw new Error('No active markdown file found');
+			if (!postId) {
+				throw new Error('No post ID returned: ' + newPostResponse.json)
 			}
-			this.app.fileManager.processFrontMatter(activeLeaf.file, (frontmatter) => {
+
+			console.log('Post created successfully with ID: %s', postId);
+			new Notice('Post created successfully with ID: ' + postId);
+
+			this.app.fileManager.processFrontMatter(activeLeaf.file!!, (frontmatter) => {
 				frontmatter['id'] = postId;
 			});
 
-			// Upload media files
-			await this.uploadMedia(activeLeaf.file, postId);
-			return true
+			return postId
 
 		} catch (error) {
 			console.error('Failed to publish post', error);
-			return false
+			new Notice('Failed to publish post');
+			return null
 		}
 	}
 
 	async uploadMedia(postFile: TFile, postId: string) {
 
-		const mediaFolder = postFile
-							.parent
-							?.children
-							.find((abstractFile: TAbstractFile) => {
-								console.log(abstractFile.name);
-								return abstractFile.name === 'media';
-							}) as TFolder | null | undefined
-		
-		if (!mediaFolder) {
-			console.log('couldnt file media folder');
-			// Nothing to upload
-			return;
-		}
-
-		const form = new Multipart();
-
-		for (const mediaFile of mediaFolder.children) {
-			if (!(mediaFile instanceof TFile)) {
-				continue;
+		try {
+			const mediaFolder = postFile
+								.parent
+								?.children
+								.find((abstractFile: TAbstractFile) => {
+									console.log(abstractFile.name);
+									return abstractFile.name === 'media';
+								}) as TFolder | null | undefined
+			
+			if (!mediaFolder) {
+				console.log('couldnt file media folder');
+				// Nothing to upload
+				return;
 			}
-			const fileString = await this.app.vault.read(mediaFile)
-			form.append("files", Buffer.from(fileString), { filename: mediaFile.name })
+
+			const form = new Multipart();
+			let fileCount = 0;
+			for (const mediaFile of mediaFolder.children) {
+				if (!(mediaFile instanceof TFile)) {
+					continue;
+				}
+				const fileString = await this.app.vault.read(mediaFile);
+				form.append("files", Buffer.from(fileString), { filename: mediaFile.name });
+				fileCount++;
+			}
+
+			const body = (await form.buffer()).toString();
+
+			const response = await requestUrl({
+				url: `${this.settings.apiBaseUrl}/admin/post/${postId}/media?includesBanner=true`,
+				method: 'POST',
+				headers: {
+					'Authorization': createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
+				},
+				contentType: `multipart/form-data; boundary=${form.getBoundary()}`,
+				body: body,
+			});
+
+			if (response.status < 300) {
+				new Notice(fileCount + " media files uploaded successfully");
+			} else {
+				throw Error('Error response: ' + response.text);
+			}
+
+		} catch (error) {
+			console.error('Failed to upload media files', error);
+			new Notice('Failed to upload media files');
 		}
-
-		const body = (await form.buffer()).toString();
-
-		const response = await requestUrl({
-			url: `${this.settings.apiBaseUrl}/admin/post/${postId}/media?includesBanner=true`,
-			method: 'POST',
-			headers: {
-				'Authorization': createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
-			},
-			contentType: `multipart/form-data; boundary=${form.getBoundary()}`,
-			body: body,
-		});
-		console.log(response.status);
-		console.log(response.text);
 	}
 
 	async loadSettings() {
