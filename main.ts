@@ -1,7 +1,5 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TAbstractFile, TFile, TFolder } from 'obsidian';
 import { createBasicAuthHeader, getMimeType } from 'utils';
-import Multipart from 'multi-part-lite';
-import { contentType } from 'mime-types';
 import axios from 'axios';
 
 interface Flow2PluginSettings {
