@@ -36,26 +36,44 @@ export default class Flow2Plugin extends Plugin {
 
         this.registerEvent(
         this.app.workspace.on('file-menu', (menu, file) => {
-            menu.addItem((item) => {
-            item
-                .setTitle('Publish to Flow2')
-                .setIcon('waves')
-                .onClick(async () => {
-                    await this.publishAndUploadMedia();
-                });
+            menu
+            .addItem((item) => {
+                item
+                    .setTitle('Publish to Flow2')
+                    .setIcon('waves')
+                    .onClick(async () => {
+                        await this.publishAndUploadMedia();
+                    });
+            })
+            .addItem((item) => {
+                item
+                    .setTitle('Pull From Flow2')
+                    .setIcon('waves')
+                    .onClick(async () => {
+                        await this.searchAndPullFromFlow2();
+                    });
             });
         })
         );
       
         this.registerEvent(
         this.app.workspace.on("editor-menu", (menu, editor, view) => {
-            menu.addItem((item) => {
-            item
-                .setTitle('Publish to Flow2')
-                .setIcon('waves')
-                .onClick(async () => {
-                    await this.publishAndUploadMedia();
-                });
+            menu
+            .addItem((item) => {
+                item
+                    .setTitle('Publish to Flow2')
+                    .setIcon('waves')
+                    .onClick(async () => {
+                        await this.publishAndUploadMedia();
+                    });
+            })
+            .addItem((item) => {
+                item
+                    .setTitle('Pull From Flow2')
+                    .setIcon('waves')
+                    .onClick(async () => {
+                        await this.searchAndPullFromFlow2();
+                    });
             });
         })
         );
@@ -64,6 +82,42 @@ export default class Flow2Plugin extends Plugin {
     }
 
     onunload() {}
+
+
+    async searchAndPullFromFlow2() {
+        const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
+            
+        if (activeLeaf && activeLeaf.file) {
+            const fileName = activeLeaf.file.basename
+            const existingPostContent = await this.searchForPostByTitle(fileName);
+            
+            if (existingPostContent) {
+                new Notice("Post found - pulling content")
+                await activeLeaf.editor.setValue(existingPostContent)
+                new Notice("File updated with Post content")
+            } else {
+                new Notice("No post found")
+            }
+        }
+    }
+
+    async searchForPostByTitle(fileName: string): Promise<string | null> {
+        const response = await axios.get(`${this.settings.apiBaseUrl}/admin/api/post/search`, {
+            params: {
+                title: fileName
+            },
+            headers: {
+                'Authorization': createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
+                'Content-Type': 'text/plain',
+            }
+        });
+
+        if (response.status != 200) {
+            return null
+        } else {
+            return response.data
+        }
+    }
 
     async publishAndUploadMedia() {
         const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
