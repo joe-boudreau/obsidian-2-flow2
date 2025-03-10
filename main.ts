@@ -168,9 +168,9 @@ export default class Flow2Plugin extends Plugin {
 
         try {
             const mediaFolder = postFile.parent?.children
-                                .find((abstractFile: TAbstractFile) => {return abstractFile.name === 'media'}) as TFolder | null | undefined;
+                                .find((abstractFile: TAbstractFile) => {return abstractFile.name === 'media'});
             
-            if (!mediaFolder) {
+            if (!mediaFolder || !(mediaFolder instanceof TFolder)) {
                 console.log('couldnt find media folder');
                 // Nothing to upload
                 return;
