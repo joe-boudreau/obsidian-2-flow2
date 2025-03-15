@@ -1,5 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TAbstractFile, TFile, TFolder } from 'obsidian';
-import { createBasicAuthHeader, getMimeType } from 'utils';
+import { App, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, TAbstractFile, TFile, TFolder } from 'obsidian';
 import axios from 'axios';
 
 interface Flow2PluginSettings {
@@ -105,7 +104,7 @@ export default class Flow2Plugin extends Plugin {
                 title: fileName
             },
             headers: {
-                'Authorization': createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
+                'Authorization': this.createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
                 'Content-Type': 'text/plain',
             }
         });
@@ -137,7 +136,7 @@ export default class Flow2Plugin extends Plugin {
             const content = activeLeaf.editor.getValue();
             const response = await axios.post(`${this.settings.apiBaseUrl}/admin/api/post`, content, {
                 headers: {
-                    'Authorization': createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
+                    'Authorization': this.createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
                     'Content-Type': 'text/plain',
                 }
             });
@@ -183,14 +182,13 @@ export default class Flow2Plugin extends Plugin {
                     continue;
                 }
                 const fileBuffer = await this.app.vault.readBinary(mediaFile);
-                const mimeType = getMimeType(mediaFile.name);
                 formData.append('files', new Blob([fileBuffer]), mediaFile.name);
                 fileCount++;
             }
 
             const response = await axios.post(`${this.settings.apiBaseUrl}/admin/post/${postId}/media?includesBanner=true`, formData, {
                 headers: {
-                    'Authorization': createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
+                    'Authorization': this.createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
                     'Content-Type': 'multipart/form-data',
                 }
             });
@@ -213,6 +211,12 @@ export default class Flow2Plugin extends Plugin {
 
     async saveSettings() {
         await this.saveData(this.settings);
+    }
+
+    createBasicAuthHeader(username: String, password: String) {
+        const credentials = `${username}:${password}`;
+        const encodedCredentials = btoa(credentials); // Base64 encoding
+        return `Basic ${encodedCredentials}`;
     }
 }
 
