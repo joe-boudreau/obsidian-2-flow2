@@ -239,6 +239,17 @@ class Flow2SettingTab extends PluginSettingTab {
 
         containerEl.createEl('h2', {text: 'Flow2 Plugin Settings'});
 
+		new Setting(containerEl)
+			.setName('Hostname Header')
+			.setDesc('Host Header for the Flow2 API')
+			.addText(text => text
+				.setPlaceholder('Enter the Host Header value')
+				.setValue(this.plugin.settings.hostname)
+				.onChange(async (value) => {
+					this.plugin.settings.hostname = value;
+					await this.plugin.saveSettings();
+				}));
+
         new Setting(containerEl)
             .setName('API Base URL')
             .setDesc('Base URL for the Flow2 API')
