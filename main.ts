@@ -2,12 +2,14 @@ import { App, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, TAbstract
 import axios from 'axios';
 
 interface Flow2PluginSettings {
-    apiBaseUrl: string;
+	hostname: string,
+	apiBaseUrl: string;
     authUsername: string;
     authPassword: string;
 }
 
 const DEFAULT_SETTINGS: Flow2PluginSettings = {
+	hostname: 'flowtwo.io',
     apiBaseUrl: 'https://flowtwo.io',
     authUsername: '',
     authPassword: '',
@@ -106,6 +108,7 @@ export default class Flow2Plugin extends Plugin {
             headers: {
                 'Authorization': this.createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
                 'Content-Type': 'text/plain',
+				'Host': this.settings.hostname,
             }
         });
 
@@ -138,7 +141,8 @@ export default class Flow2Plugin extends Plugin {
                 headers: {
                     'Authorization': this.createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
                     'Content-Type': 'text/plain',
-                }
+					'Host': this.settings.hostname,
+				}
             });
 
             const postId = response.data?.id;
@@ -190,7 +194,8 @@ export default class Flow2Plugin extends Plugin {
                 headers: {
                     'Authorization': this.createBasicAuthHeader(this.settings.authUsername, this.settings.authPassword),
                     'Content-Type': 'multipart/form-data',
-                }
+					'Host': this.settings.hostname,
+				}
             });
 
             if (response.status < 300) {
